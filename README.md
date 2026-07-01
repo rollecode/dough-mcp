@@ -27,7 +27,14 @@ the environment, so the key stays on your machine and nothing is exposed on the 
 - `dough_subscriptions` - subscriptions
 - `dough_savings_goals` - active goals with target and derived saved amount
 
-All tools are read-only.
+Write tools (require a key minted with `--scopes read,write`):
+
+- `dough_auto_assign_preview` - preview target funding for a month (read-only)
+- `dough_auto_assign_apply` - apply auto-assign for a month (underfunded / last_assigned / last_spent)
+- `dough_budget_assign` - set one category's budgeted amount for a month
+
+The read tools work with any key. The write tools return 403 unless the configured `DOUGH_API_KEY`
+has the `write` scope, so a read-only key is safe to leave configured for query-only use.
 
 ## Install
 

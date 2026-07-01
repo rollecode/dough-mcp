@@ -34,6 +34,20 @@ async function doughGet(path: string, params: Record<string, string | number | u
   return body;
 }
 
+// Call a v1 endpoint with a JSON body (POST) and return its raw JSON text. Throws on non-2xx.
+async function doughPost(path: string, body: Record<string, unknown>): Promise<string> {
+  const res = await fetch(`${API_URL}/api/v1/${path}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`Dough API returned ${res.status} for POST /api/v1/${path}: ${text.slice(0, 300)}`);
+  }
+  return text;
+}
+
 // Await a doughGet and wrap the JSON (or the error) as an MCP tool result.
 async function reply(p: Promise<string>) {
   try {
@@ -117,6 +131,45 @@ server.registerTool(
     inputSchema: { month: MONTH },
   },
   ({ month }) => reply(doughGet("savings-goals", { month }))
+);
+
+server.registerTool(
+  "dough_auto_assign_preview",
+  {
+    description: "Preview auto-assign for a month without writing. Without mode: the total each mode (underfunded, last_assigned, last_spent) would assign. With mode: the full per-category plan. Read-only.",
+    inputSchema: {
+      month: MONTH,
+      mode: z.enum(["underfunded", "last_assigned", "last_spent"]).optional().describe("Show the full plan for this mode"),
+    },
+  },
+  ({ month, mode }) => reply(doughGet("budget/auto-assign", { month, mode }))
+);
+
+server.registerTool(
+  "dough_auto_assign_apply",
+  {
+    description: "Apply auto-assign for a month (writes budget). Funds category targets from Ready to Assign, capped so it never overbudgets. Modes: underfunded (fund manual targets), last_assigned (mirror last month's assignments), last_spent (match last month's spending). Requires a write-scoped key.",
+    inputSchema: {
+      month: MONTH,
+      mode: z.enum(["underfunded", "last_assigned", "last_spent"]).describe("Assignment strategy"),
+    },
+  },
+  ({ month, mode }) => reply(doughPost("budget/auto-assign", { month, mode }))
+);
+
+server.registerTool(
+  "dough_budget_assign",
+  {
+    description: "Set one category's budgeted amount for a month (writes budget). Identify the category by category_id or category_name. Requires a write-scoped key.",
+    inputSchema: {
+      month: MONTH,
+      category_id: z.number().int().optional().describe("Category id (from dough_budget)"),
+      category_name: z.string().optional().describe("Category name, if id is unknown"),
+      budgeted: z.number().describe("The amount to set as budgeted this month"),
+    },
+  },
+  ({ month, category_id, category_name, budgeted }) =>
+    reply(doughPost("budget/assign", { month, category_id, category_name, budgeted }))
 );
 
 const transport = new StdioServerTransport();
