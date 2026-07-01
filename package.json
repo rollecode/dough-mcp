@@ -1,0 +1,32 @@
+{
+  "name": "dough-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for the Dough personal finance app - read-only access to accounts, transactions, budget and net worth via the Dough v1 API",
+  "type": "module",
+  "bin": {
+    "dough-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "dough",
+    "personal-finance"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "typescript": "^6.0.3"
+  }
+}
