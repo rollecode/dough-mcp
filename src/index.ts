@@ -3,9 +3,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-// MCP server for Dough (https://github.com/rollecode/dough). A thin, read-only client of Dough's
+// MCP server for Dough (https://github.com/rollecode/dough). A thin client of Dough's
 // key-authenticated /api/v1 API: it holds no database access and no logic of its own, it just maps
-// each endpoint to an MCP tool so an assistant can read the household's finances.
+// each endpoint to an MCP tool so an assistant can read (and, with a write-scoped key, edit) the
+// household's finances. Dough is a standalone self-hosted budget app with its own ledger; it is
+// NOT a YNAB frontend, so Dough data is fixed through these tools, not in YNAB.
 //
 // Configure via environment:
 //   DOUGH_API_URL  base URL of the Dough instance, e.g. https://dough.example.com
@@ -60,7 +62,7 @@ async function reply(p: Promise<string>) {
   }
 }
 
-const server = new McpServer({ name: "dough-mcp", version: "0.1.0" });
+const server = new McpServer({ name: "dough-mcp", version: "0.2.0" });
 
 const MONTH = z.string().regex(/^\d{4}-\d{2}$/).optional().describe("Month as YYYY-MM; defaults to the current month");
 
@@ -170,6 +172,36 @@ server.registerTool(
   },
   ({ month, category_id, category_name, budgeted }) =>
     reply(doughPost("budget/assign", { month, category_id, category_name, budgeted }))
+);
+
+server.registerTool(
+  "dough_update_transaction",
+  {
+    description: "Edit one transaction in Dough's own ledger by the id dough_transactions returns. Only the fields you pass change. To fix a misrouted internal transfer, set category to 'Internal transfer' and transfer_account_id to the correct counterpart account: Dough relabels the payee and maintains the opposite leg. Dough is a standalone budget app (not a YNAB frontend), so its data is fixed here, never in YNAB. Requires a write-scoped key.",
+    inputSchema: {
+      transaction_id: z.string().describe("Transaction id from dough_transactions"),
+      amount: z.number().positive().optional().describe("Absolute amount; sign comes from inflow"),
+      inflow: z.boolean().optional().describe("true = money in (stored positive), false = money out"),
+      payee_name: z.string().optional().describe("New payee"),
+      memo: z.string().optional().describe("New description"),
+      account_id: z.string().optional().describe("Move the transaction to this account (from dough_accounts)"),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("New date as YYYY-MM-DD"),
+      category: z.string().optional().describe("New category name, or 'Internal transfer' for a transfer leg"),
+      transfer_account_id: z.string().optional().describe("Counterpart account id when category is 'Internal transfer'"),
+    },
+  },
+  (args) => reply(doughPost("transactions/update", args))
+);
+
+server.registerTool(
+  "dough_delete_transaction",
+  {
+    description: "Delete one transaction from Dough's ledger by id (split siblings go with it) and reverse its balance effect. Requires a write-scoped key.",
+    inputSchema: {
+      transaction_id: z.string().describe("Transaction id from dough_transactions"),
+    },
+  },
+  ({ transaction_id }) => reply(doughPost("transactions/delete", { transaction_id }))
 );
 
 const transport = new StdioServerTransport();

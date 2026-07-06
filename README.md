@@ -1,9 +1,12 @@
 # dough-mcp
 
 An MCP (Model Context Protocol) server for [Dough](https://github.com/rollecode/dough), the personal
-finance app. It is a thin, read-only client of Dough's `/api/v1` API: it holds no database access and
-no logic of its own, it just exposes each endpoint as an MCP tool so an assistant (Claude Code,
-Claude Desktop) can read your finances.
+finance app. It is a thin client of Dough's `/api/v1` API: it holds no database access and no logic
+of its own, it just exposes each endpoint as an MCP tool so an assistant (Claude Code, Claude
+Desktop) can read your finances and, with a write-scoped key, do the budgeting and fix transactions.
+
+Dough is a standalone self-hosted budget app with its own ledger (bank-synced or manual). It is not
+a YNAB frontend: Dough's data is corrected through these tools or Dough's own UI, never in YNAB.
 
 ## How it fits together
 
@@ -32,6 +35,8 @@ Write tools (require a key minted with `--scopes read,write`):
 - `dough_auto_assign_preview` - preview target funding for a month (read-only)
 - `dough_auto_assign_apply` - apply auto-assign for a month (underfunded / last_assigned / last_spent)
 - `dough_budget_assign` - set one category's budgeted amount for a month
+- `dough_update_transaction` - edit one transaction (partial: only passed fields change); setting category `Internal transfer` with a counterpart account fixes a misrouted transfer and maintains the opposite leg
+- `dough_delete_transaction` - delete one transaction and reverse its balance effect
 
 The read tools work with any key. The write tools return 403 unless the configured `DOUGH_API_KEY`
 has the `write` scope, so a read-only key is safe to leave configured for query-only use.
