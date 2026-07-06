@@ -41,7 +41,7 @@ has the `write` scope, so a read-only key is safe to leave configured for query-
 ```bash
 git clone git@github.com:rollecode/dough-mcp.git
 cd dough-mcp
-npm install   # builds dist/ via the prepare script
+npm install && npm run build   # dist/ is committed; rebuild only when changing src/
 ```
 
 ## Get an API key
