@@ -118,7 +118,7 @@ server.registerTool("dough_create_transaction", {
         amount: z.number().positive().describe("Absolute amount; sign comes from inflow"),
         inflow: z.boolean().optional().describe("true = money in (stored positive), false/omitted = money out"),
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Date as YYYY-MM-DD; defaults to today"),
-        payee_name: z.string().optional().describe("Payee, e.g. 'Prisma', 'S-market'"),
+        payee_name: z.string().optional().describe("Payee, e.g. 'Grocery store', 'Coffee shop'"),
         memo: z.string().optional().describe("Description, e.g. 'Pending hold (varaus)'"),
         category: z.string().optional().describe("Category name from dough_budget, or 'Internal transfer' for a transfer leg"),
         cleared: z.string().optional().describe("Ledger state; 'cleared' (default) or 'uncleared' for a pending hold"),
