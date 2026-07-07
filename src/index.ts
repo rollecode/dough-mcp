@@ -62,7 +62,7 @@ async function reply(p: Promise<string>) {
   }
 }
 
-const server = new McpServer({ name: "dough-mcp", version: "0.2.0" });
+const server = new McpServer({ name: "dough-mcp", version: "0.3.0" });
 
 const MONTH = z.string().regex(/^\d{4}-\d{2}$/).optional().describe("Month as YYYY-MM; defaults to the current month");
 
@@ -172,6 +172,25 @@ server.registerTool(
   },
   ({ month, category_id, category_name, budgeted }) =>
     reply(doughPost("budget/assign", { month, category_id, category_name, budgeted }))
+);
+
+server.registerTool(
+  "dough_create_transaction",
+  {
+    description: "Add a NEW transaction to Dough's own ledger and apply its balance effect. Use for rows Synci has not imported yet - most importantly pending card holds (varaukset): add each hold as an outflow so Dough matches the bank's available balance to the cent. amount is the absolute value; inflow defaults to false (money out). category is a category name (from dough_budget); leave blank to keep it uncategorized. Set cleared to 'uncleared' to mark a pending hold, or leave it 'cleared'. For a transfer, set category to 'Internal transfer' and transfer_account_id to the counterpart account. Dough is a standalone budget app (not a YNAB frontend); its data is fixed here, never in YNAB. Requires a write-scoped key.",
+    inputSchema: {
+      account_id: z.string().describe("Account the transaction posts to (from dough_accounts)"),
+      amount: z.number().positive().describe("Absolute amount; sign comes from inflow"),
+      inflow: z.boolean().optional().describe("true = money in (stored positive), false/omitted = money out"),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Date as YYYY-MM-DD; defaults to today"),
+      payee_name: z.string().optional().describe("Payee, e.g. 'Prisma', 'S-market'"),
+      memo: z.string().optional().describe("Description, e.g. 'Pending hold (varaus)'"),
+      category: z.string().optional().describe("Category name from dough_budget, or 'Internal transfer' for a transfer leg"),
+      cleared: z.string().optional().describe("Ledger state; 'cleared' (default) or 'uncleared' for a pending hold"),
+      transfer_account_id: z.string().optional().describe("Counterpart account id when category is 'Internal transfer'"),
+    },
+  },
+  (args) => reply(doughPost("transactions/create", args))
 );
 
 server.registerTool(
