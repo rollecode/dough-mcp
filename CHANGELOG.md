@@ -1,5 +1,9 @@
 # Changelog
 
+### 0.4.1: 2026-07-11
+
+* Correct what `budget_excluded` promises: it hides a transaction from spending reports, it does not remove it from the budget's accounting. The category still absorbs the cost and Ready to Assign is untouched (dough 3.15.2)
+
 ### 0.4.0: 2026-07-11
 
 * Add `budget_excluded` to `dough_create_transaction` and `dough_update_transaction`: set it true to keep a transaction out of every budget figure (daily budget, categories, cash flow, income, Ready to Assign) while it still moves the account balance, or false to include it again. Needs Dough 3.15.0+

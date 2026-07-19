@@ -62,7 +62,7 @@ async function reply(p: Promise<string>) {
   }
 }
 
-const server = new McpServer({ name: "dough-mcp", version: "0.4.0" });
+const server = new McpServer({ name: "dough-mcp", version: "0.4.1" });
 
 const MONTH = z.string().regex(/^\d{4}-\d{2}$/).optional().describe("Month as YYYY-MM; defaults to the current month");
 
@@ -87,7 +87,7 @@ server.registerTool(
 server.registerTool(
   "dough_transactions",
   {
-    description: "Transactions newest first, with optional filters. Each row carries an `excluded` flag (true when it is excluded from budget figures via budget_excluded).",
+    description: "Transactions newest first, with optional filters. Each row carries an `excluded` flag (true when it is hidden from spending reports via budget_excluded).",
     inputSchema: {
       month: MONTH,
       account_id: z.string().optional().describe("Only this account's transactions"),
@@ -177,7 +177,7 @@ server.registerTool(
 server.registerTool(
   "dough_create_transaction",
   {
-    description: "Add a NEW transaction to Dough's own ledger and apply its balance effect. Use for rows Synci has not imported yet - most importantly pending card holds (varaukset): add each hold as an outflow so Dough matches the bank's available balance to the cent. amount is the absolute value; inflow defaults to false (money out). category is a category name (from dough_budget); leave blank to keep it uncategorized. Set cleared to 'uncleared' to mark a pending hold, or leave it 'cleared'. For a transfer, set category to 'Internal transfer' and transfer_account_id to the counterpart account. Set budget_excluded to true to keep the row out of every budget figure (daily budget, categories, cash flow, income, Ready to Assign) while it still moves the account balance - use it for a one-off that should not count against the household budget. Dough is a standalone budget app (not a YNAB frontend); its data is fixed here, never in YNAB. Requires a write-scoped key.",
+    description: "Add a NEW transaction to Dough's own ledger and apply its balance effect. Use for rows Synci has not imported yet - most importantly pending card holds (varaukset): add each hold as an outflow so Dough matches the bank's available balance to the cent. amount is the absolute value; inflow defaults to false (money out). category is a category name (from dough_budget); leave blank to keep it uncategorized. Set cleared to 'uncleared' to mark a pending hold, or leave it 'cleared'. For a transfer, set category to 'Internal transfer' and transfer_account_id to the counterpart account. Set budget_excluded to true to hide the row from spending reports (cash flow, trends, burn rate, today's spent, month expenses) so a one-off does not skew the stats. It does NOT change the budget's accounting: the category it is filed under still absorbs the cost and Ready to Assign is untouched, so the budget keeps reconciling with the accounts. Dough is a standalone budget app (not a YNAB frontend); its data is fixed here, never in YNAB. Requires a write-scoped key.",
     inputSchema: {
       account_id: z.string().describe("Account the transaction posts to (from dough_accounts)"),
       amount: z.number().positive().describe("Absolute amount; sign comes from inflow"),
@@ -188,7 +188,7 @@ server.registerTool(
       category: z.string().optional().describe("Category name from dough_budget, or 'Internal transfer' for a transfer leg"),
       cleared: z.string().optional().describe("Ledger state; 'cleared' (default) or 'uncleared' for a pending hold"),
       transfer_account_id: z.string().optional().describe("Counterpart account id when category is 'Internal transfer'"),
-      budget_excluded: z.boolean().optional().describe("true = exclude from all budget figures (balance still changes)"),
+      budget_excluded: z.boolean().optional().describe("true = hide from spending reports; category and balance still account for it"),
     },
   },
   (args) => reply(doughPost("transactions/create", args))
@@ -197,7 +197,7 @@ server.registerTool(
 server.registerTool(
   "dough_update_transaction",
   {
-    description: "Edit one transaction in Dough's own ledger by the id dough_transactions returns. Only the fields you pass change. To fix a misrouted internal transfer, set category to 'Internal transfer' and transfer_account_id to the correct counterpart account: Dough relabels the payee and maintains the opposite leg. Set budget_excluded to true to exclude the row from every budget figure (daily budget, categories, cash flow, income, Ready to Assign) while it still moves the account balance, or false to include it again. Dough is a standalone budget app (not a YNAB frontend), so its data is fixed here, never in YNAB. Requires a write-scoped key.",
+    description: "Edit one transaction in Dough's own ledger by the id dough_transactions returns. Only the fields you pass change. To fix a misrouted internal transfer, set category to 'Internal transfer' and transfer_account_id to the correct counterpart account: Dough relabels the payee and maintains the opposite leg. Set budget_excluded to true to hide the row from spending reports (cash flow, trends, burn rate, today's spent, month expenses), or false to show it again. It does NOT change the budget's accounting: the category still absorbs the cost and Ready to Assign is untouched. Dough is a standalone budget app (not a YNAB frontend), so its data is fixed here, never in YNAB. Requires a write-scoped key.",
     inputSchema: {
       transaction_id: z.string().describe("Transaction id from dough_transactions"),
       amount: z.number().positive().optional().describe("Absolute amount; sign comes from inflow"),
@@ -208,7 +208,7 @@ server.registerTool(
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("New date as YYYY-MM-DD"),
       category: z.string().optional().describe("New category name, or 'Internal transfer' for a transfer leg"),
       transfer_account_id: z.string().optional().describe("Counterpart account id when category is 'Internal transfer'"),
-      budget_excluded: z.boolean().optional().describe("true = exclude from all budget figures, false = include again (balance unaffected either way)"),
+      budget_excluded: z.boolean().optional().describe("true = hide from spending reports, false = show again; category and balance unaffected either way"),
     },
   },
   (args) => reply(doughPost("transactions/update", args))
