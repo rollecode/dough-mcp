@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.0.0: 2026-08-19
+
+* Full write coverage: the MCP can now create, edit and delete every entity Dough has, not just transactions and budget assignments. New tools for bills, subscriptions, savings goals, accounts, categories (and their targets), debts/loans and investments, plus move-money and snooze/unsnooze for the budget
+* Add `dough_debts` and `dough_investments` read tools (accounts joined with their overrides) so you can see current terms/values before editing
+* Requires Dough 3.17.0+ (the matching `/api/v1` write endpoints)
+
 ### 0.4.1: 2026-07-11
 
 * Correct what `budget_excluded` promises: it hides a transaction from spending reports, it does not remove it from the budget's accounting. The category still absorbs the cost and Ready to Assign is untouched (dough 3.15.2)

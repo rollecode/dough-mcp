@@ -62,7 +62,7 @@ async function reply(p: Promise<string>) {
   }
 }
 
-const server = new McpServer({ name: "dough-mcp", version: "0.4.1" });
+const server = new McpServer({ name: "dough-mcp", version: "1.0.0" });
 
 const MONTH = z.string().regex(/^\d{4}-\d{2}$/).optional().describe("Month as YYYY-MM; defaults to the current month");
 
@@ -223,6 +223,340 @@ server.registerTool(
     },
   },
   ({ transaction_id }) => reply(doughPost("transactions/delete", { transaction_id }))
+);
+
+// ---- Reads: debts and investments (accounts joined with their overrides) ----
+
+server.registerTool(
+  "dough_debts",
+  { description: "Debt/loan accounts with their overrides: balance, interest rate, minimum payment, due day, original amount, notes, priority.", inputSchema: {} },
+  () => reply(doughGet("debts"))
+);
+
+server.registerTool(
+  "dough_investments",
+  { description: "Investment accounts with their overrides: balance (market value), monthly contribution, expected return, ticker, cost basis (contributed).", inputSchema: {} },
+  () => reply(doughGet("investments"))
+);
+
+// ---- Bills (write) ----
+
+server.registerTool(
+  "dough_create_bill",
+  {
+    description: "Add a recurring bill. A monthly bill recurs every month on due_day; a yearly bill recurs once a year on due_month + due_day. Requires a write-scoped key.",
+    inputSchema: {
+      name: z.string().describe("Bill name"),
+      amount: z.number().describe("Amount due"),
+      due_day: z.number().int().min(1).max(31).describe("Day of month it is due"),
+      category: z.string().optional().describe("Budget category name"),
+      cadence: z.enum(["monthly", "yearly"]).optional().describe("Defaults to monthly"),
+      due_month: z.number().int().min(1).max(12).optional().describe("Month 1-12, required for a yearly bill"),
+    },
+  },
+  (args) => reply(doughPost("bills/create", args))
+);
+
+server.registerTool(
+  "dough_update_bill",
+  {
+    description: "Edit a bill by id (from dough_bills). Only provided fields change. mark_paid records this month's paid status; is_priority/is_active toggle flags. Requires a write-scoped key.",
+    inputSchema: {
+      id: z.number().int().describe("Bill id from dough_bills"),
+      name: z.string().optional(),
+      amount: z.number().optional(),
+      due_day: z.number().int().min(1).max(31).optional(),
+      category: z.string().optional(),
+      cadence: z.enum(["monthly", "yearly"]).optional(),
+      due_month: z.number().int().min(1).max(12).optional(),
+      is_priority: z.boolean().optional().describe("Mark as a must-pay bill"),
+      is_active: z.boolean().optional(),
+      mark_paid: z.boolean().optional().describe("Mark this month paid/unpaid"),
+      paid_amount: z.number().optional().describe("Actual amount paid, with mark_paid=true"),
+    },
+  },
+  (args) => reply(doughPost("bills/update", args))
+);
+
+server.registerTool(
+  "dough_delete_bill",
+  { description: "Delete a bill by id (and its paid-status/history/payee patterns). Requires a write-scoped key.", inputSchema: { id: z.number().int() } },
+  ({ id }) => reply(doughPost("bills/delete", { id }))
+);
+
+// ---- Subscriptions (write) ----
+
+server.registerTool(
+  "dough_create_subscription",
+  {
+    description: "Add a subscription (monthly, on due_day). Requires a write-scoped key.",
+    inputSchema: {
+      name: z.string(),
+      amount: z.number(),
+      due_day: z.number().int().min(1).max(31),
+      brand_color: z.string().optional().describe("Hex colour, e.g. '#6366f1'"),
+      brand_logo: z.string().optional(),
+    },
+  },
+  (args) => reply(doughPost("subscriptions/create", args))
+);
+
+server.registerTool(
+  "dough_update_subscription",
+  {
+    description: "Edit a subscription by id (from dough_subscriptions). Only provided fields change. mark_paid records this month's paid status. Requires a write-scoped key.",
+    inputSchema: {
+      id: z.number().int(),
+      name: z.string().optional(),
+      amount: z.number().optional(),
+      due_day: z.number().int().min(1).max(31).optional(),
+      brand_color: z.string().optional(),
+      brand_logo: z.string().optional(),
+      is_priority: z.boolean().optional(),
+      is_active: z.boolean().optional(),
+      mark_paid: z.boolean().optional(),
+    },
+  },
+  (args) => reply(doughPost("subscriptions/update", args))
+);
+
+server.registerTool(
+  "dough_delete_subscription",
+  { description: "Delete a subscription by id. Requires a write-scoped key.", inputSchema: { id: z.number().int() } },
+  ({ id }) => reply(doughPost("subscriptions/delete", { id }))
+);
+
+// ---- Savings goals (write) ----
+
+server.registerTool(
+  "dough_create_savings_goal",
+  {
+    description: "Add a savings goal. Linking it to a budget category (ynab_category_id from dough_budget) ties its progress to that category's available balance. Requires a write-scoped key.",
+    inputSchema: {
+      name: z.string(),
+      target_amount: z.number(),
+      ynab_category_id: z.number().int().optional().describe("Budget category to link (progress derives from it)"),
+      ynab_category_name: z.string().optional(),
+      target_date: z.string().optional().describe("Target date YYYY-MM-DD"),
+      description: z.string().optional(),
+    },
+  },
+  (args) => reply(doughPost("savings-goals/create", args))
+);
+
+server.registerTool(
+  "dough_update_savings_goal",
+  {
+    description: "Edit a savings goal by id (from dough_savings_goals). Set ynab_category_id to relink (or null to unlink). Only provided fields change. Requires a write-scoped key.",
+    inputSchema: {
+      id: z.number().int(),
+      name: z.string().optional(),
+      target_amount: z.number().optional(),
+      saved_amount: z.number().optional().describe("Manual saved amount when the goal is not linked to a category"),
+      ynab_category_id: z.number().int().nullable().optional(),
+      ynab_category_name: z.string().optional(),
+      target_date: z.string().optional(),
+      description: z.string().optional(),
+      include_in_calculations: z.boolean().optional(),
+      is_active: z.boolean().optional(),
+    },
+  },
+  (args) => reply(doughPost("savings-goals/update", args))
+);
+
+server.registerTool(
+  "dough_delete_savings_goal",
+  { description: "Delete a savings goal by id (unlinks its category). Requires a write-scoped key.", inputSchema: { id: z.number().int() } },
+  ({ id }) => reply(doughPost("savings-goals/delete", { id }))
+);
+
+// ---- Accounts (write) ----
+
+server.registerTool(
+  "dough_create_account",
+  {
+    description: "Create a manual account. type is checking/savings/otherAsset (investment)/otherDebt (loan). balance seeds the opening balance. on_budget=false for tracking accounts (investments/debts). Requires a write-scoped key.",
+    inputSchema: {
+      name: z.string(),
+      type: z.string().optional().describe("checking (default), savings, otherAsset, otherDebt"),
+      balance: z.number().optional(),
+      on_budget: z.boolean().optional().describe("false for tracking accounts (investments, debts)"),
+    },
+  },
+  (args) => reply(doughPost("accounts/create", args))
+);
+
+server.registerTool(
+  "dough_update_account",
+  {
+    description: "Edit an account by id (from dough_accounts). Setting balance reconciles it (records a Reconciliation Balance Adjustment for the difference). Set closed=true to close, on_budget to include/exclude from the budget. Requires a write-scoped key.",
+    inputSchema: {
+      id: z.string(),
+      name: z.string().optional(),
+      type: z.string().optional(),
+      balance: z.number().optional().describe("New reconciled balance"),
+      on_budget: z.boolean().optional(),
+      closed: z.boolean().optional(),
+      sort_order: z.number().int().optional(),
+    },
+  },
+  (args) => reply(doughPost("accounts/update", args))
+);
+
+server.registerTool(
+  "dough_delete_account",
+  { description: "Delete an account by id (manual accounts are removed; synced accounts are closed). Requires a write-scoped key.", inputSchema: { id: z.string() } },
+  ({ id }) => reply(doughPost("accounts/delete", { id }))
+);
+
+// ---- Debts / loans (write) ----
+
+server.registerTool(
+  "dough_update_debt",
+  {
+    description: "Set a debt/loan account's terms by ynab_account_id (from dough_debts or dough_accounts). Only provided fields change. Requires a write-scoped key.",
+    inputSchema: {
+      ynab_account_id: z.string(),
+      interest_rate: z.number().optional().describe("Annual interest rate %"),
+      minimum_payment: z.number().optional(),
+      due_day: z.number().int().min(0).max(31).optional().describe("0 = unset"),
+      notes: z.string().optional(),
+      original_amount: z.number().optional().describe("Original loan amount, for payoff progress"),
+      is_priority: z.boolean().optional(),
+    },
+  },
+  (args) => reply(doughPost("debts/update", args))
+);
+
+server.registerTool(
+  "dough_reorder_debts",
+  { description: "Set the display order of debts. Requires a write-scoped key.", inputSchema: { order: z.array(z.string()).describe("ynab_account_ids in the desired order") } },
+  ({ order }) => reply(doughPost("debts/reorder", { order }))
+);
+
+// ---- Investments (write) ----
+
+server.registerTool(
+  "dough_update_investment",
+  {
+    description: "Update an investment by ynab_account_id (from dough_investments or dough_accounts). value sets the current market value (updates balance). added grows the cost basis by a new contribution; init_contributed seeds the cost basis directly. Only provided fields change; a daily progress snapshot is recorded. Requires a write-scoped key.",
+    inputSchema: {
+      ynab_account_id: z.string(),
+      monthly_contribution: z.number().optional(),
+      expected_return: z.number().optional().describe("Expected annual return % (default 7)"),
+      notes: z.string().optional(),
+      ticker: z.string().optional(),
+      value: z.number().optional().describe("Current market value (updates the account balance)"),
+      added: z.number().optional().describe("New money contributed now (grows cost basis)"),
+      init_contributed: z.number().optional().describe("Seed the total cost basis directly"),
+    },
+  },
+  (args) => reply(doughPost("investments/update", args))
+);
+
+server.registerTool(
+  "dough_reorder_investments",
+  { description: "Set the display order of investments. Requires a write-scoped key.", inputSchema: { order: z.array(z.string()).describe("ynab_account_ids in the desired order") } },
+  ({ order }) => reply(doughPost("investments/reorder", { order }))
+);
+
+// ---- Categories and targets (write) ----
+
+server.registerTool(
+  "dough_create_category",
+  {
+    description: "Create a budget category. Requires a write-scoped key.",
+    inputSchema: {
+      name: z.string(),
+      group_name: z.string().optional().describe("Category group"),
+      color: z.string().optional(),
+    },
+  },
+  (args) => reply(doughPost("categories/create", args))
+);
+
+server.registerTool(
+  "dough_update_category",
+  {
+    description: "Edit a category by id (from dough_budget). Renaming also relabels its transactions. The link fields tie the category to a subscription/bill/debt/investment/savings goal and are mutually exclusive (setting one clears the others). Only provided fields change. Requires a write-scoped key.",
+    inputSchema: {
+      id: z.number().int(),
+      name: z.string().optional(),
+      group_name: z.string().optional(),
+      description: z.string().optional(),
+      color: z.string().optional(),
+      is_active: z.boolean().optional(),
+      sort_order: z.number().int().optional(),
+      subscription_id: z.number().int().nullable().optional(),
+      bill_id: z.number().int().nullable().optional(),
+      debt_account_id: z.string().nullable().optional(),
+      savings_goal_id: z.number().int().nullable().optional(),
+      investment_account_id: z.string().nullable().optional(),
+    },
+  },
+  (args) => reply(doughPost("categories/update", args))
+);
+
+server.registerTool(
+  "dough_delete_category",
+  {
+    description: "Delete a category by id. If it has transactions, reassign_to (another category id) is required and its transactions and budgets move there. Requires a write-scoped key.",
+    inputSchema: {
+      id: z.number().int(),
+      reassign_to: z.number().int().optional().describe("Category id to move transactions/budgets to"),
+    },
+  },
+  (args) => reply(doughPost("categories/delete", args))
+);
+
+server.registerTool(
+  "dough_set_category_target",
+  {
+    description: "Set (or clear) a category's budget target. cadence: monthly/weekly/daily/yearly/by_date. For by_date set target_date. Pass clear=true to remove the target. Requires a write-scoped key.",
+    inputSchema: {
+      category_id: z.number().int(),
+      monthly_amount: z.number().optional().describe("Target amount for the cadence"),
+      cadence: z.string().optional().describe("monthly (default), weekly, daily, yearly, by_date"),
+      target_date: z.string().optional().describe("Target date YYYY-MM-DD for by_date targets"),
+      snooze_until_month: z.string().optional().describe("YYYY-MM to pause the target until"),
+      clear: z.boolean().optional().describe("true removes the target"),
+    },
+  },
+  (args) => reply(doughPost("categories/target", args))
+);
+
+// ---- Budget: move money / snooze ----
+
+server.registerTool(
+  "dough_move_budget",
+  {
+    description: "Move assigned money between two categories in a month (YNAB 'move money' / cover overspending). Clamped to the source's available so it never manufactures negative available. Requires a write-scoped key.",
+    inputSchema: {
+      month: MONTH,
+      from_category_id: z.number().int(),
+      to_category_id: z.number().int(),
+      amount: z.number().positive(),
+    },
+  },
+  (args) => reply(doughPost("budget/move", args))
+);
+
+server.registerTool(
+  "dough_snooze_category",
+  {
+    description: "Snooze a category for a month (drops it out of the normal list; its target stops counting that month). Requires a write-scoped key.",
+    inputSchema: { category_id: z.number().int(), month: MONTH },
+  },
+  (args) => reply(doughPost("budget/snooze", args))
+);
+
+server.registerTool(
+  "dough_unsnooze_category",
+  {
+    description: "Remove a category's snooze for a month. Requires a write-scoped key.",
+    inputSchema: { category_id: z.number().int(), month: MONTH },
+  },
+  (args) => reply(doughPost("budget/unsnooze", args))
 );
 
 const transport = new StdioServerTransport();
