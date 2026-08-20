@@ -57,7 +57,7 @@ async function reply(p) {
         };
     }
 }
-const server = new McpServer({ name: "dough-mcp", version: "1.0.0" });
+const server = new McpServer({ name: "dough-mcp", version: "1.1.0" });
 const MONTH = z.string().regex(/^\d{4}-\d{2}$/).optional().describe("Month as YYYY-MM; defaults to the current month");
 server.registerTool("dough_summary", {
     description: "Compact financial snapshot: total balance and this month's income, spending, budgeted and Ready to Assign.",
@@ -347,6 +347,35 @@ server.registerTool("dough_unsnooze_category", {
     description: "Remove a category's snooze for a month. Requires a write-scoped key.",
     inputSchema: { category_id: z.number().int(), month: MONTH },
 }, (args) => reply(doughPost("budget/unsnooze", args)));
+// ---- Income (read + write) ----
+server.registerTool("dough_income", {
+    description: "Income sources with this month's status. Each row has `received` (true if already received this month) and `upcoming` (true for an active, not-yet-received source whose expected_day is still ahead) - so filter upcoming for FUTURE income. Pass month=YYYY-MM to check another month (a future month lists all active unreceived as upcoming).",
+    inputSchema: { month: MONTH },
+}, ({ month }) => reply(doughGet("income", { month })));
+server.registerTool("dough_create_income", {
+    description: "Add an income source (expected on expected_day each month if recurring). Requires a write-scoped key.",
+    inputSchema: {
+        name: z.string(),
+        amount: z.number(),
+        expected_day: z.number().int().min(1).max(31).describe("Day of month it is expected"),
+        is_recurring: z.boolean().optional().describe("Recurs monthly (default false)"),
+        target_account_id: z.string().optional().describe("Account it lands in (from dough_accounts)"),
+    },
+}, (args) => reply(doughPost("income/create", args)));
+server.registerTool("dough_update_income", {
+    description: "Edit an income source by id (from dough_income). Only provided fields change. mark_received records this month's received status. Requires a write-scoped key.",
+    inputSchema: {
+        id: z.number().int(),
+        name: z.string().optional(),
+        amount: z.number().optional(),
+        expected_day: z.number().int().min(1).max(31).optional(),
+        is_recurring: z.boolean().optional(),
+        is_active: z.boolean().optional(),
+        target_account_id: z.string().optional(),
+        mark_received: z.boolean().optional().describe("Mark this month received/not received"),
+    },
+}, (args) => reply(doughPost("income/update", args)));
+server.registerTool("dough_delete_income", { description: "Delete an income source by id. Requires a write-scoped key.", inputSchema: { id: z.number().int() } }, ({ id }) => reply(doughPost("income/delete", { id })));
 const transport = new StdioServerTransport();
 await server.connect(transport);
 console.error("dough-mcp: connected via stdio, serving", API_URL);

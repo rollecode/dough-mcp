@@ -1,5 +1,9 @@
 # Changelog
 
+### 1.1.0: 2026-08-20
+
+* Add income tools: `dough_income` (list income sources with this month's received/upcoming status, so future income is listable) plus `dough_create_income`/`dough_update_income`/`dough_delete_income`. Requires Dough 3.18.0+
+
 ### 1.0.0: 2026-08-19
 
 * Full write coverage: the MCP can now create, edit and delete every entity Dough has, not just transactions and budget assignments. New tools for bills, subscriptions, savings goals, accounts, categories (and their targets), debts/loans and investments, plus move-money and snooze/unsnooze for the budget
