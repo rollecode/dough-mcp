@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.2.0: 2026-08-24
+
+* `dough_update_category` takes `budget_excluded`: leave a whole category's transactions out of the spending reports, for money that belongs to someone else but runs through the household accounts. Requires Dough 3.19.0+
+* `dough_budget` reports `budget_excluded` per category and `dough_accounts` reports it per account, so an excluded account is no longer indistinguishable from an included one
+* `dough_summary` describes that its month figures follow the month asked for
+
 ### 1.1.0: 2026-08-20
 
 * Add income tools: `dough_income` (list income sources with this month's received/upcoming status, so future income is listable) plus `dough_create_income`/`dough_update_income`/`dough_delete_income`. Requires Dough 3.18.0+

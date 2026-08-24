@@ -62,14 +62,14 @@ async function reply(p: Promise<string>) {
   }
 }
 
-const server = new McpServer({ name: "dough-mcp", version: "1.1.0" });
+const server = new McpServer({ name: "dough-mcp", version: "1.2.0" });
 
 const MONTH = z.string().regex(/^\d{4}-\d{2}$/).optional().describe("Month as YYYY-MM; defaults to the current month");
 
 server.registerTool(
   "dough_summary",
   {
-    description: "Compact financial snapshot: total balance and this month's income, spending, budgeted and Ready to Assign.",
+    description: "Compact financial snapshot: total balance and the month's income, spending, budgeted and Ready to Assign. Every month figure is computed for the month asked for, so a past month returns that month.",
     inputSchema: { month: MONTH },
   },
   ({ month }) => reply(doughGet("summary", { month }))
@@ -78,7 +78,7 @@ server.registerTool(
 server.registerTool(
   "dough_accounts",
   {
-    description: "All accounts with balances. Set include_closed to also return closed accounts.",
+    description: "All accounts with balances. Each row carries budget_excluded (true when the account is left out of the app's spendable-balance figure). Set include_closed to also return closed accounts.",
     inputSchema: { include_closed: z.boolean().optional().describe("Include closed accounts (default false)") },
   },
   ({ include_closed }) => reply(doughGet("accounts", { include_closed: include_closed ? 1 : undefined }))
@@ -102,7 +102,7 @@ server.registerTool(
 server.registerTool(
   "dough_budget",
   {
-    description: "The month's budget: income, total budgeted, Ready to Assign, age of money and every active category's budgeted / activity / available.",
+    description: "The month's budget: income, total budgeted, Ready to Assign, age of money and every active category's budgeted / activity / available. A category carries budget_excluded when its transactions are left out of the spending reports (money that belongs to someone else but runs through the household accounts); its budgeted and available still count in the budget.",
     inputSchema: { month: MONTH },
   },
   ({ month }) => reply(doughGet("budget", { month }))
@@ -478,7 +478,7 @@ server.registerTool(
 server.registerTool(
   "dough_update_category",
   {
-    description: "Edit a category by id (from dough_budget). Renaming also relabels its transactions. The link fields tie the category to a subscription/bill/debt/investment/savings goal and are mutually exclusive (setting one clears the others). Only provided fields change. Requires a write-scoped key.",
+    description: "Edit a category by id (from dough_budget). Renaming also relabels its transactions. The link fields tie the category to a subscription/bill/debt/investment/savings goal and are mutually exclusive (setting one clears the others). Set budget_excluded to true for money that belongs to someone else but runs through the household accounts (a household member's own earnings and the spending they fund): every transaction filed under the category then drops out of the spending reports, wherever it was paid from, which an account-level exclusion cannot do. It does NOT change the budget's accounting: the category still absorbs the cost and Ready to Assign is untouched, so the budget keeps reconciling with the accounts. Only provided fields change. Requires a write-scoped key.",
     inputSchema: {
       id: z.number().int(),
       name: z.string().optional(),
@@ -486,6 +486,7 @@ server.registerTool(
       description: z.string().optional(),
       color: z.string().optional(),
       is_active: z.boolean().optional(),
+      budget_excluded: z.boolean().optional().describe("Leave this category's transactions out of the spending reports"),
       sort_order: z.number().int().optional(),
       subscription_id: z.number().int().nullable().optional(),
       bill_id: z.number().int().nullable().optional(),

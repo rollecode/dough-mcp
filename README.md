@@ -21,8 +21,8 @@ the environment, so the key stays on your machine and nothing is exposed on the 
 
 ## Tools
 
-- `dough_summary` - total balance and this month's income, spending, budgeted and Ready to Assign
-- `dough_accounts` - all accounts with balances
+- `dough_summary` - total balance and the month's income, spending, budgeted and Ready to Assign
+- `dough_accounts` - all accounts with balances, each flagged if it is left out of the spendable balance
 - `dough_transactions` - transactions newest first, with month / account / category / search filters
 - `dough_budget` - the month's budget, Ready to Assign, age of money and per-category available
 - `dough_net_worth` - current net worth by kind plus snapshot history
