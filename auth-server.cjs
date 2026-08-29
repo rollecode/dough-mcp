@@ -249,11 +249,11 @@ function loginPage({ params, error }) {
 <link rel="icon" href="/icon.png" type="image/png">
 <link rel="apple-touch-icon" href="/icon.png">
 <style>
-  /* Dough's own palette: purple. */
-  :root{color-scheme:light dark;--fg:#150827;--muted:#6a6377;--line:#e5e0f0;
-        --bg:#fcf9ff;--accent:#7c5cfc;--on-accent:#fff}
+  /* Dough's own palette, from the app's src/styles/theme.css. */
+  :root{color-scheme:light dark;--fg:#09090b;--muted:#828196;--line:#e4e4e7;
+        --bg:#fafafa;--accent:#6366f1;--on-accent:#fff}
   @media (prefers-color-scheme:dark){
-    :root{--fg:#fcf9ff;--muted:#9a93a8;--line:#2a1d3d;--bg:#150827;--accent:#7c5cfc}
+    :root{--fg:#fafafa;--muted:#828196;--line:rgba(255,255,255,0.10);--bg:#0b0a12;--accent:#6366f1}
   }
   *{box-sizing:border-box}
   body{font:15px/1.5 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg);
@@ -637,8 +637,8 @@ app.get('/', (_req, res) => {
 <link rel="icon" href="/icon.png" type="image/png">
 <link rel="apple-touch-icon" href="/icon.png">
 <style>
-  :root{color-scheme:light dark;--fg:#150827;--muted:#6a6377;--bg:#fcf9ff}
-  @media (prefers-color-scheme:dark){:root{--fg:#fcf9ff;--muted:#9a93a8;--bg:#150827}}
+  :root{color-scheme:light dark;--fg:#09090b;--muted:#828196;--bg:#fafafa}
+  @media (prefers-color-scheme:dark){:root{--fg:#fafafa;--muted:#828196;--bg:#0b0a12}}
   body{font:15px/1.5 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg);
        display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;padding:1.5rem}
   main{max-width:20rem}
