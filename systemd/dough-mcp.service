@@ -1,0 +1,21 @@
+[Unit]
+Description=Dough MCP server (local machine only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rolle
+WorkingDirectory=/home/rolle/Projects/dough-mcp
+EnvironmentFile=/home/rolle/.config/dough-mcp/env
+Environment=MCP_PUBLIC_URL=https://dough-mcp.rolle.wtf
+ExecStart=/usr/bin/node /home/rolle/Projects/dough-mcp/dist/index.js \
+  --transport http --host 127.0.0.1 --port 8490
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=false
+
+[Install]
+WantedBy=multi-user.target

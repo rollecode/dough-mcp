@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { createServer } from "node:http";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 // MCP server for Dough (https://github.com/rollecode/dough). A thin client of Dough's
@@ -62,7 +65,10 @@ async function reply(p: Promise<string>) {
   }
 }
 
-const server = new McpServer({ name: "dough-mcp", version: "1.2.0" });
+// Build a fresh McpServer with every tool registered. A new one is made per HTTP session
+// (one server binds one transport) and once for stdio.
+function buildServer(): McpServer {
+const server = new McpServer({ name: "dough-mcp", version: "1.3.0" });
 
 const MONTH = z.string().regex(/^\d{4}-\d{2}$/).optional().describe("Month as YYYY-MM; defaults to the current month");
 
@@ -610,6 +616,79 @@ server.registerTool(
   ({ id }) => reply(doughPost("income/delete", { id }))
 );
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
-console.error("dough-mcp: connected via stdio, serving", API_URL);
+  return server;
+}
+
+// The HTTP transport has no login of its own; auth-server.cjs sits in front of it. So it
+// binds loopback only and refuses anything routable.
+const LOCAL_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
+
+async function serveHttp(host: string, port: number): Promise<void> {
+  if (!LOCAL_HOSTS.has(host)) {
+    throw new Error(
+      `Refusing to listen on ${host}: this server has no login of its own. ` +
+        "Keep it local and put auth-server.cjs in front of it.",
+    );
+  }
+
+  const sessions = new Map<string, StreamableHTTPServerTransport>();
+
+  async function openSession(): Promise<StreamableHTTPServerTransport> {
+    const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+      onsessioninitialized: (id: string) => {
+        sessions.set(id, transport);
+      },
+    });
+    transport.onclose = () => {
+      if (transport.sessionId) sessions.delete(transport.sessionId);
+    };
+    await buildServer().connect(transport);
+    return transport;
+  }
+
+  createServer((req, res) => {
+    if (!req.url?.startsWith("/mcp")) {
+      res.writeHead(404).end();
+      return;
+    }
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk) => chunks.push(chunk));
+    req.on("end", async () => {
+      try {
+        const raw = Buffer.concat(chunks).toString();
+        const body = raw ? JSON.parse(raw) : undefined;
+        const sessionId = req.headers["mcp-session-id"] as string | undefined;
+        const transport = sessionId ? sessions.get(sessionId) : await openSession();
+        if (!transport) {
+          res.writeHead(404).end();
+          return;
+        }
+        await transport.handleRequest(req, res, body);
+      } catch {
+        if (!res.headersSent) res.writeHead(500).end();
+      }
+    });
+  }).listen(port, host, () => {
+    console.error(`dough-mcp listening on http://${host}:${port}/mcp, serving ${API_URL}`);
+  });
+}
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const arg = (flag: string, fallback: string): string =>
+    args.includes(flag) ? args[args.indexOf(flag) + 1] : fallback;
+
+  if (arg("--transport", "stdio") === "http") {
+    await serveHttp(arg("--host", "127.0.0.1"), Number(arg("--port", "8490")));
+    return;
+  }
+
+  await buildServer().connect(new StdioServerTransport());
+  console.error("dough-mcp: connected via stdio, serving", API_URL);
+}
+
+main().catch((err) => {
+  console.error("dough-mcp failed to start:", err);
+  process.exit(1);
+});

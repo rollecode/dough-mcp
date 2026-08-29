@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.3.0: 2026-08-29
+
+* Add a remote HTTP transport (`--transport http`) so Dough can be added to claude.ai on web, desktop and mobile as a custom connector, not just used over stdio in Claude Code
+* Ship the OAuth 2.1 login layer (`auth-server.cjs`) with dynamic client registration, PKCE and a branded Dough sign-in page, plus the nginx/systemd/tunnel config, matching the other remote MCPs
+* stdio stays the default; the same 42 tools are served either way
+
 ### 1.2.0: 2026-08-24
 
 * `dough_update_category` takes `budget_excluded`: leave a whole category's transactions out of the spending reports, for money that belongs to someone else but runs through the household accounts. Requires Dough 3.19.0+

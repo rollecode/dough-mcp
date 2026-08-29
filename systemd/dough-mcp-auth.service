@@ -1,0 +1,23 @@
+[Unit]
+Description=Login and access control for the Dough MCP
+After=network-online.target dough-mcp.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rolle
+WorkingDirectory=/home/rolle/Projects/dough-mcp
+Environment=PORT=8492
+Environment=UPSTREAM=http://127.0.0.1:8490
+Environment=ISSUER=https://dough-mcp.rolle.wtf
+Environment=CONFIG_DIR=/home/rolle/.config/dough-mcp
+ExecStart=/usr/bin/node /home/rolle/Projects/dough-mcp/auth-server.cjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=/home/rolle/.config/dough-mcp
+
+[Install]
+WantedBy=multi-user.target

@@ -1,7 +1,7 @@
 {
   "name": "dough-mcp",
-  "version": "1.2.0",
-  "description": "MCP server for the Dough personal finance app - read-only access to accounts, transactions, budget and net worth via the Dough v1 API",
+  "version": "1.3.0",
+  "description": "MCP server for the Dough personal finance app - full read/write access via the Dough v1 API, over stdio (Claude Code) or a remote HTTP transport (claude.ai connector)",
   "type": "module",
   "bin": {
     "dough-mcp": "dist/index.js"
@@ -11,7 +11,9 @@
   ],
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "serve": "node auth-server.cjs",
+    "set-password": "node set-password.cjs"
   },
   "keywords": [
     "mcp",
@@ -22,6 +24,8 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.2.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
