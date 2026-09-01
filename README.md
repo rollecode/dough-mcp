@@ -1,45 +1,71 @@
-# dough-mcp
+<center align="center" style="text-align: center;justify-content:center;">
+<div align="center" style="text-align: center;justify-content:center;">
+<h1 align="center" style="text-align: center;justify-content:center;">
 
-An MCP (Model Context Protocol) server for [Dough](https://github.com/rollecode/dough), the personal
-finance app. It is a thin client of Dough's `/api/v1` API: it holds no database access and no logic
-of its own, it just exposes each endpoint as an MCP tool so an assistant (Claude Code, Claude
-Desktop) can read your finances and, with a write-scoped key, do the budgeting and fix transactions.
+Dough MCP server
 
-Dough is a standalone self-hosted budget app with its own ledger (bank-synced or manual). It is not
-a YNAB frontend: Dough's data is corrected through these tools or Dough's own UI, never in YNAB.
+<img style="justify-content:center;text-align: center;width: 95px; height: auto;" width="793" height="411" alt="Claude Code" src="https://github.com/user-attachments/assets/abed1a04-d69b-4ab4-a490-d606064df72d" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/dough-logo-dark.png" />
+  <img style="justify-content:center;text-align: center;width: 190px; height: auto;" alt="Dough" src="assets/dough-logo-light.png" />
+</picture>
+</h1>
+
+![Version](https://img.shields.io/badge/version-1.3.0-6366f1.svg?style=for-the-badge) ![Node](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) ![OAuth](https://img.shields.io/badge/OAuth_2.1-EB5424?style=for-the-badge&logo=auth0&logoColor=white) ![MCP](https://img.shields.io/badge/MCP-000000?style=for-the-badge)
+
+</div>
+</center>
+
+<hr>
+
+Read and write your [Dough](https://github.com/rollecode/dough) finances from Claude.ai and Claude Code. Covers every part of Dough: accounts, transactions, budget, bills, subscriptions, savings goals, debts, investments and income, all read and write. It runs over stdio for Claude Code, or behind an OAuth 2.1 login so it can be added to Claude.ai as a custom connector.
+
+Dough is a standalone self-hosted budget app with its own ledger (bank-synced or manual). It is not a YNAB frontend: Dough's data is corrected through these tools or Dough's own UI, never in YNAB.
+
+<hr>
 
 ## How it fits together
 
 ```
 dough (web app)  ──  /api/v1/*  (API-key auth)
                           ▲  HTTPS + Bearer key
-dough-mcp (this repo)  ── stdio ──  Claude Code / Claude Desktop
+dough-mcp  ──  stdio (Claude Code)  ──or──  HTTP + OAuth 2.1 (Claude.ai connector)
 ```
 
-The server never sees your database. It calls the Dough HTTP API with an API key you supply through
-the environment, so the key stays on your machine and nothing is exposed on the internet.
+The server never sees your database. It calls the Dough HTTP API with an API key you supply through the environment, so the key stays on your machine and nothing about your ledger is exposed on the internet.
 
 ## Tools
 
-- `dough_summary` - total balance and the month's income, spending, budgeted and Ready to Assign
-- `dough_accounts` - all accounts with balances, each flagged if it is left out of the spendable balance
-- `dough_transactions` - transactions newest first, with month / account / category / search filters
-- `dough_budget` - the month's budget, Ready to Assign, age of money and per-category available
-- `dough_net_worth` - current net worth by kind plus snapshot history
-- `dough_bills` - recurring bills
-- `dough_subscriptions` - subscriptions
-- `dough_savings_goals` - active goals with target and derived saved amount
+43 tools across every part of Dough. Read tools work with any key; write tools need a key minted with `--scopes write` and return 403 otherwise.
 
-Write tools (require a key minted with `--scopes read,write`):
+**Read** — `dough_summary`, `dough_accounts`, `dough_transactions`, `dough_budget`, `dough_net_worth`, `dough_bills`, `dough_subscriptions`, `dough_savings_goals`, `dough_debts`, `dough_investments`, `dough_income`
 
-- `dough_auto_assign_preview` - preview target funding for a month (read-only)
-- `dough_auto_assign_apply` - apply auto-assign for a month (underfunded / last_assigned / last_spent)
-- `dough_budget_assign` - set one category's budgeted amount for a month
-- `dough_update_transaction` - edit one transaction (partial: only passed fields change); setting category `Internal transfer` with a counterpart account fixes a misrouted transfer and maintains the opposite leg
-- `dough_delete_transaction` - delete one transaction and reverse its balance effect
+**Transactions** — create, update and delete, including pending card holds and per-transaction budget exclusion
 
-The read tools work with any key. The write tools return 403 unless the configured `DOUGH_API_KEY`
-has the `write` scope, so a read-only key is safe to leave configured for query-only use.
+**Budget** — auto-assign preview and apply, assign a category, move money, snooze / unsnooze, set targets
+
+**Manage** — create / update / delete for bills, subscriptions, savings goals, accounts, categories and income, plus update and reorder for debts and investments
+
+## Add to Claude.ai
+
+Settings, Connectors, Add custom connector, and paste the MCP URL of your deployment, for example:
+
+```
+https://dough-mcp.example.com/mcp
+```
+
+Leave client ID and secret blank. The OAuth 2.1 login in front (`auth-server.cjs`) handles registration and sign-in, and issues the token.
+
+## Claude Code
+
+Over HTTP, with the fixed token the login also accepts:
+
+```bash
+claude mcp add --transport http dough https://dough-mcp.example.com/mcp \
+  --header "Authorization: Bearer $(cat ~/.config/dough-mcp/token)" --scope user
+```
+
+Or over stdio, with `DOUGH_API_URL` and `DOUGH_API_KEY` set in the environment.
 
 ## Install
 
@@ -49,62 +75,17 @@ cd dough-mcp
 npm install && npm run build   # dist/ is committed; rebuild only when changing src/
 ```
 
+Configure via environment:
+
+- `DOUGH_API_URL` — base URL of the Dough instance, e.g. `https://dough.example.com`
+- `DOUGH_API_KEY` — an API key minted in the Dough repo (see below)
+
 ## Get an API key
 
 In the Dough repo, on the host that owns the database:
 
 ```bash
-npx tsx scripts/create-api-key.ts --name "dough-mcp" --scopes read
+npx tsx scripts/create-api-key.ts --name "dough-mcp" --scopes write
 ```
 
-The key is printed once. See Dough's `docs/public-api.md` for details.
-
-## Configuration
-
-The server reads two environment variables:
-
-- `DOUGH_API_URL` - base URL of your Dough instance, e.g. `https://dough.example.com`
-- `DOUGH_API_KEY` - the API key you minted
-
-### Claude Code
-
-```bash
-claude mcp add dough \
-  --env DOUGH_API_URL=https://dough.example.com \
-  --env DOUGH_API_KEY=dough_your_key_here \
-  -- node /absolute/path/to/dough-mcp/dist/index.js
-```
-
-Or add it to a project `.mcp.json` / your user settings:
-
-```json
-{
-  "mcpServers": {
-    "dough": {
-      "command": "node",
-      "args": ["/absolute/path/to/dough-mcp/dist/index.js"],
-      "env": {
-        "DOUGH_API_URL": "https://dough.example.com",
-        "DOUGH_API_KEY": "dough_your_key_here"
-      }
-    }
-  }
-}
-```
-
-### Claude Desktop
-
-Add the same block to `mcpServers` in `claude_desktop_config.json`, then restart Claude Desktop.
-
-## Development
-
-```bash
-npm run build      # compile TypeScript to dist/
-npm start          # run the server (expects the two env vars)
-```
-
-## Security
-
-- The key grants read access to your financial data. Keep it in the client config's `env`, never in
-  source or a committed file.
-- Revoke a key from the Dough host: `sqlite3 data/dough.db "UPDATE api_keys SET revoked_at = datetime('now') WHERE name = 'dough-mcp';"`
+The key is printed once. Use `--scopes read` for a query-only key. See Dough's `docs/public-api.md` for details.
