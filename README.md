@@ -11,14 +11,16 @@ Dough MCP server
 </picture>
 </h1>
 
-![Version](https://img.shields.io/badge/version-1.3.0-6366f1.svg?style=for-the-badge) ![Node](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) ![OAuth](https://img.shields.io/badge/OAuth_2.1-EB5424?style=for-the-badge&logo=auth0&logoColor=white) ![MCP](https://img.shields.io/badge/MCP-000000?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-2.0.0-6366f1.svg?style=for-the-badge) ![Node](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) ![OAuth](https://img.shields.io/badge/OAuth_2.1-EB5424?style=for-the-badge&logo=auth0&logoColor=white) ![MCP](https://img.shields.io/badge/MCP-000000?style=for-the-badge)
 
 </div>
 </center>
 
 <hr>
 
-Read and write your [Dough](https://github.com/rollecode/dough) finances from Claude.ai and Claude Code. Covers every part of Dough: accounts, transactions, budget, bills, subscriptions, savings goals, debts, investments and income, all read and write. It runs over stdio for Claude Code, or behind an OAuth 2.1 login so it can be added to Claude.ai as a custom connector.
+Read and write your [Dough](https://github.com/rollecode/dough) finances from Claude.ai and Claude Code. It offers every tool the Dough instance it points at has, because it takes them from that instance. It runs over stdio for Claude Code, or behind an OAuth 2.1 login so it can be added to Claude.ai as a custom connector.
+
+Since Dough 4.4.0 every instance is an MCP server itself at `/mcp`, and a client that can connect to a remote MCP server with OAuth can use that directly. dough-mcp is for the rest: a local process over stdio, or a separately hosted endpoint.
 
 Dough is a standalone self-hosted budget app with its own ledger (bank-synced or manual). It is not a YNAB frontend: Dough's data is corrected through these tools or Dough's own UI, never in YNAB.
 
@@ -27,24 +29,16 @@ Dough is a standalone self-hosted budget app with its own ledger (bank-synced or
 ## How it fits together
 
 ```
-dough (web app)  ──  /api/v1/*  (API-key auth)
-                          ▲  HTTPS + Bearer key
+dough (web app)  ──  /mcp  (the instance's own tools, API-key auth)
+                       ▲  HTTPS + Bearer key
 dough-mcp  ──  stdio (Claude Code)  ──or──  HTTP + OAuth 2.1 (Claude.ai connector)
 ```
 
-The server never sees your database. It calls the Dough HTTP API with an API key you supply through the environment, so the key stays on your machine and nothing about your ledger is exposed on the internet.
+The server never sees your database. It passes each tool call to the instance's `/mcp` with an API key you supply through the environment, so the key stays on your machine and nothing about your ledger is exposed on the internet. Needs Dough 4.4.0 or later.
 
 ## Tools
 
-43 tools across every part of Dough. Read tools work with any key; write tools need a key minted with `--scopes write` and return 403 otherwise.
-
-**Read** — `dough_summary`, `dough_accounts`, `dough_transactions`, `dough_budget`, `dough_net_worth`, `dough_bills`, `dough_subscriptions`, `dough_savings_goals`, `dough_debts`, `dough_investments`, `dough_income`
-
-**Transactions** — create, update and delete, including pending card holds and per-transaction budget exclusion
-
-**Budget** — auto-assign preview and apply, assign a category, move money, snooze / unsnooze, set targets
-
-**Manage** — create / update / delete for bills, subscriptions, savings goals, accounts, categories and income, plus update and reorder for debts and investments
+Whatever the instance offers, which is one tool for every part of its API: accounts, transactions and splits, budget and targets, categories, bills, subscriptions, income, savings goals, debts, investments, payees, budget links, settings, Dougie and more. An instance that gains a tool gains it here without a new dough-mcp. Read tools work with any key; write tools need a key minted with `--scopes write` and return 403 otherwise.
 
 ## Add to Claude.ai
 

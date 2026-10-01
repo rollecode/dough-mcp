@@ -1,5 +1,10 @@
 # Changelog
 
+### 2.0.0: 2026-10-01
+
+* Take the tools from the Dough instance's own `/mcp` instead of keeping a copy here, so every tool and field the instance has is available and none can fall behind
+* Requires Dough 4.4.0 or later
+
 ### 1.3.0: 2026-08-29
 
 * Add a remote HTTP transport (`--transport http`) so Dough can be added to claude.ai on web, desktop and mobile as a custom connector, not just used over stdio in Claude Code
