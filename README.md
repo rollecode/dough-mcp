@@ -26,6 +26,9 @@ Dough is a standalone self-hosted budget app with its own ledger (bank-synced or
 
 <hr>
 
+> [!WARNING]
+> Using this server with a paid AI service costs money. Tool definitions and results are billed as input tokens, and an agent can call tools repeatedly on its own. You are responsible for every charge, so set spending limits with your provider. The author accepts no liability for any costs. See [DISCLAIMER.md](DISCLAIMER.md).
+
 ## How it fits together
 
 ```
